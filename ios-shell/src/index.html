@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Nervus · Personal AI v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── RESET ── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+*{scrollbar-width:none}*::-webkit-scrollbar{display:none}
+
+/* ── DARK THEME (default) ── */
+:root{
+  --bg:#07070E;
+  --bg-blur:rgba(7,7,14,.92);
+  --s1:rgba(255,255,255,.04);
+  --s2:rgba(255,255,255,.07);
+  --s3:rgba(255,255,255,.12);
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.13);
+  --text:#EEEEF8;
+  --text2:rgba(238,238,248,.55);
+  --text3:rgba(238,238,248,.28);
+  --accent:#8B72FF;
+  --accent-s:rgba(139,114,255,.13);
+  --accent-g:rgba(139,114,255,.4);
+  --teal:#5EEAB5;
+  --teal-s:rgba(94,234,181,.13);
+  --orange:#FFAA5C;
+  --red:#FF6E7A;
+  --card:#13132A;
+  --PW:390px;--PH:844px;
+}
+
+/* ── LIGHT THEME ── */
+@media(prefers-color-scheme:light){
+  :root{
+    --bg:#F2F2F7;--bg-blur:rgba(242,242,247,.92);
+    --s1:rgba(0,0,0,.04);--s2:rgba(255,255,255,.72);--s3:rgba(0,0,0,.08);
+    --border:rgba(0,0,0,.07);--border2:rgba(0,0,0,.12);
+    --text:#1C1C1E;--text2:rgba(28,28,30,.55);--text3:rgba(28,28,30,.35);
+    --accent:#6B52F0;--accent-s:rgba(107,82,240,.1);--accent-g:rgba(107,82,240,.25);
+    --teal:#00C896;--teal-s:rgba(0,200,150,.12);
+    --orange:#E0820A;--red:#E8344A;--card:#FFFFFF;
+  }
+  body{background:#D8D8E8;background-image:radial-gradient(ellipse 700px 500px at 20% 20%,rgba(107,82,240,.07) 0%,transparent 70%)}
+  .phone{box-shadow:0 0 0 1px rgba(0,0,0,.12),0 0 0 9px #C8C8D8,0 0 0 10px rgba(0,0,0,.04),0 60px 120px rgba(0,0,0,.35),0 20px 40px rgba(0,0,0,.15)}
+  .phone::before,.phone::after{background:#B8B8C8}
+}
+
+/* ── BODY + PHONE SHELL ── */
+body{min-height:100vh;background:#020208;display:flex;align-items:center;justify-content:center;font-family:'PingFang SC','Outfit',-apple-system,sans-serif;overflow:hidden;background-image:radial-gradient(ellipse 800px 600px at 15% 20%,rgba(80,60,180,.18) 0%,transparent 70%),radial-gradient(ellipse 600px 500px at 85% 80%,rgba(30,140,120,.12) 0%,transparent 70%)}
+.phone{width:var(--PW);height:var(--PH);border-radius:52px;background:var(--bg);position:relative;overflow:hidden;touch-action:none;user-select:none;box-shadow:0 0 0 1px rgba(255,255,255,.15),0 0 0 9px #181828,0 0 0 10px rgba(255,255,255,.06),0 60px 120px rgba(0,0,0,.9),0 20px 40px rgba(0,0,0,.5)}
+.phone::before{content:'';position:absolute;left:-12px;top:120px;width:4px;height:60px;background:#1e1e30;border-radius:3px 0 0 3px;box-shadow:0 70px 0 #1e1e30}
+.phone::after{content:'';position:absolute;right:-12px;top:150px;width:4px;height:80px;background:#1e1e30;border-radius:0 3px 3px 0}
+
+/* Dynamic Island */
+.di{position:absolute;top:13px;left:50%;transform:translateX(-50%);width:126px;height:36px;background:#000;border-radius:20px;z-index:200;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+
+/* ── VIEWPORT ── */
+.viewport{position:absolute;inset:0;border-radius:52px;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── STATUS BAR ── */
+.sb{height:58px;flex-shrink:0;display:flex;align-items:flex-end;justify-content:space-between;padding:0 28px 10px;pointer-events:none;position:relative;z-index:50}
+.sb-time{font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;color:var(--text);letter-spacing:-.3px}
+.sb-right{display:flex;align-items:center;gap:7px}
+.sb-conn{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);animation:blink 2.2s ease-in-out infinite;transition:all .3s}
+.sb-conn.offline{background:var(--text3);box-shadow:none;animation:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── PAGES ── */
+.pages{flex:1;position:relative;overflow:hidden}
+.page{position:absolute;inset:0;overflow-y:auto;padding:14px 18px 90px;opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .22s,transform .22s}
+.page.active{opacity:1;pointer-events:auto;transform:none}
+
+/* ── BOTTOM NAV ── */
+.nav{position:absolute;bottom:0;left:0;right:0;height:80px;background:var(--bg-blur);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border);display:flex;align-items:flex-start;padding-top:8px;z-index:100}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:var(--text3);font-size:10px;font-weight:500;cursor:pointer;padding:6px 0;font-family:inherit;transition:color .18s;letter-spacing:.2px}
+.nav-btn.active{color:var(--accent)}
+.nav-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── GLASS CARD ── */
+.gc{background:var(--s2);border:1px solid var(--border2);border-radius:22px;padding:16px 18px;position:relative;overflow:hidden}
+.gc::after{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,transparent 60%);pointer-events:none}
+.card{background:var(--s2);border:1px solid var(--border);border-radius:16px;padding:13px 15px;margin-bottom:10px}
+.sec-hdr{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 9px}
+
+/* ── SKELETONS ── */
+.skeleton{border-radius:12px;background:linear-gradient(90deg,var(--s1) 25%,var(--s3) 50%,var(--s1) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ═══════════════════════════════════
+   HOME PANEL
+═══════════════════════════════════ */
+.home-bg{position:absolute;inset:0;background:radial-gradient(ellipse 320px 280px at 50% 5%,rgba(139,114,255,.13) 0%,transparent 70%),radial-gradient(ellipse 400px 300px at 5% 85%,rgba(94,234,181,.07) 0%,transparent 70%),var(--bg);z-index:-1;pointer-events:none}
+
+/* Orb */
+.orb-wrap{position:relative;width:96px;height:96px;display:flex;align-items:center;justify-content:center;margin:6px auto 12px}
+.orb-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--accent);animation:orb-pulse 3s ease-out infinite;opacity:.55}
+.orb-ring:nth-child(2){animation-delay:.9s;border-color:var(--teal)}
+.orb-ring:nth-child(3){animation-delay:1.8s}
+@keyframes orb-pulse{0%{transform:scale(.8);opacity:.7}100%{transform:scale(1.5);opacity:0}}
+.orb{width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,rgba(139,114,255,.22),rgba(94,234,181,.18));border:1px solid rgba(139,114,255,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:2;backdrop-filter:blur(12px)}
+.orb-n{font-family:'Outfit',sans-serif;font-size:24px;font-weight:800;color:var(--text);line-height:1}
+.orb-l{font-size:8px;color:var(--teal);font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
+
+/* Greeting */
+.home-greeting{text-align:center;margin-bottom:14px}
+.home-greeting h2{font-size:18px;font-weight:700;color:var(--text);margin-bottom:3px;font-family:'Outfit',sans-serif}
+.home-greeting p{font-size:12px;color:var(--text2)}
+
+/* Phase card */
+.phase-card{background:linear-gradient(135deg,rgba(139,114,255,.1),rgba(94,234,181,.06));border:1px solid var(--accent-g);border-radius:18px;padding:13px 15px;margin-bottom:12px}
+.phase-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.phase-title{font-size:12px;font-weight:700;color:var(--accent)}
+.phase-badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--accent-s);color:var(--accent)}
+.phase-bar-track{height:3px;border-radius:2px;background:var(--s3);overflow:hidden;margin-bottom:6px}
+.phase-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--teal));transition:width .6s ease}
+.phase-desc{font-size:11.5px;color:var(--text2);line-height:1.5}
+
+/* AI Banner */
+.ai-banner{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid rgba(139,114,255,.2);border-radius:20px;padding:13px 15px;margin-bottom:12px;position:relative;overflow:hidden}
+.ai-banner::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:radial-gradient(circle,var(--accent-g) 0%,transparent 70%);pointer-events:none}
+.ai-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--accent),var(--teal));display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 14px var(--accent-g)}
+.ai-body{flex:1}
+.ai-lbl{font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.2px;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.ai-dot{width:5px;height:5px;border-radius:50%;background:var(--teal);box-shadow:0 0 5px var(--teal);animation:blink 2.2s ease-in-out infinite}
+.ai-txt{font-size:13px;color:var(--text);line-height:1.55}
+
+/* Stats row */
+.stats-row{display:flex;gap:8px;margin-bottom:13px}
+.stat-card{flex:1;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:10px 0;text-align:center}
+.stat-n{font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;display:block;margin-bottom:2px}
+.stat-l{font-size:10px;color:var(--text3);font-weight:500}
+
+/* Quick dim grid */
+.dim-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:2px}
+.dq-item{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:11px 12px;cursor:pointer;transition:all .18s}
+.dq-item:active{transform:scale(.96);background:var(--s3)}
+.dq-ico{font-size:18px;margin-bottom:5px;display:block}
+.dq-lbl{font-size:10px;color:var(--text3);font-weight:500;margin-bottom:2px}
+.dq-val{font-size:13px;font-weight:600;color:var(--text)}
+.dq-conf{font-size:10px;color:var(--text3);margin-top:2px}
+.conf-bar{height:2px;border-radius:1px;background:var(--s3);margin-top:5px;overflow:hidden}
+.conf-fill{height:100%;border-radius:1px;transition:width .5s ease}
+
+/* ═══════════════════════════════════
+   DIMENSIONS PANEL
+═══════════════════════════════════ */
+.cat-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
+.cat-tab{padding:5px 13px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;background:var(--s1);border:1px solid var(--border);color:var(--text2);transition:all .18s;font-family:inherit}
+.cat-tab.active{background:var(--accent-s);border-color:rgba(139,114,255,.3);color:var(--accent)}
+
+.dim-grid{display:flex;flex-direction:column;gap:8px}
+.dim-card{background:var(--s2);border:1px solid var(--border);border-radius:16px;padding:12px 14px}
+.dim-card-top{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.dim-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.dim-meta{flex:1;min-width:0}
+.dim-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dim-id{font-size:10px;color:var(--text3);font-family:monospace}
+.dim-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;flex-shrink:0}
+.dim-populated{background:var(--teal-s);color:var(--teal)}
+.dim-empty{background:var(--s1);color:var(--text3)}
+.dim-stale{background:rgba(255,170,92,.12);color:var(--orange)}
+.dim-value{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px;font-style:italic;word-break:break-word}
+.dim-footer{display:flex;align-items:center;gap:8px}
+.dim-conf-bar{flex:1;height:3px;border-radius:2px;background:var(--s3);overflow:hidden}
+.dim-conf-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.dim-conf-lbl{font-size:10px;color:var(--text3);white-space:nowrap;min-width:28px;text-align:right}
+.dim-ts{font-size:10px;color:var(--text3);white-space:nowrap}
+
+/* ═══════════════════════════════════
+   QUERY PANEL
+═══════════════════════════════════ */
+.query-bg{position:absolute;inset:0;background:radial-gradient(ellipse 280px 220px at 85% 12%,rgba(94,234,181,.09) 0%,transparent 70%),var(--bg);z-index:-1;pointer-events:none}
+.query-hdr{font-size:20px;font-weight:800;color:var(--text);margin-bottom:3px;font-family:'Outfit',sans-serif}
+.query-sub{font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.5}
+
+.sug-chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
+.sug-chip{padding:6px 13px;border-radius:20px;background:var(--s2);border:1px solid var(--border2);color:var(--text2);font-size:11.5px;font-weight:500;font-family:inherit;cursor:pointer;white-space:nowrap;transition:all .16s;flex-shrink:0}
+.sug-chip:active{transform:scale(.93);background:var(--s3)}
+
+.msgs{display:flex;flex-direction:column;gap:12px;margin-bottom:8px}
+.msg{max-width:82%;display:flex;flex-direction:column;gap:3px}
+.msg.ai{align-self:flex-start}
+.msg.me{align-self:flex-end}
+.bubble{padding:10px 14px;border-radius:18px;font-size:13.5px;line-height:1.55;color:var(--text)}
+.msg.ai .bubble{background:var(--s3);border:1px solid var(--border);border-bottom-left-radius:5px}
+.msg.me .bubble{background:linear-gradient(135deg,var(--accent),#6B52F0);color:#fff;border-bottom-right-radius:5px}
+.msg-t{font-size:10px;color:var(--text3);padding:0 4px}
+.msg.me .msg-t{align-self:flex-end}
+
+.typing-wrap{align-self:flex-start}
+.typing{display:inline-flex;align-items:center;gap:4px;padding:10px 14px;background:var(--s3);border:1px solid var(--border);border-radius:18px;border-bottom-left-radius:5px}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--text3);display:block;animation:typing-dot .9s ease-in-out infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes typing-dot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+
+/* Query input bar — sits above bottom nav */
+.query-input-bar{position:absolute;bottom:80px;left:0;right:0;padding:8px 14px;background:var(--bg-blur);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);z-index:90;display:none}
+.query-input-row{display:flex;gap:8px;align-items:center}
+.query-inp{flex:1;height:40px;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:0 16px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .18s}
+.query-inp:focus{border-color:var(--accent-g)}
+.query-inp::placeholder{color:var(--text3)}
+.send-btn{width:40px;height:40px;border-radius:50%;background:var(--accent);border:none;color:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 0 14px var(--accent-g);transition:transform .15s,background .15s}
+.send-btn:active{transform:scale(.88)}
+.send-btn:disabled{background:var(--s3);box-shadow:none;cursor:not-allowed}
+
+/* ═══════════════════════════════════
+   INSIGHTS PANEL
+═══════════════════════════════════ */
+.ins-hdr{font-size:20px;font-weight:800;color:var(--text);margin-bottom:3px;font-family:'Outfit',sans-serif}
+.ins-sub{font-size:12.5px;color:var(--text2);margin-bottom:16px;line-height:1.5}
+
+.insight-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:10px;position:relative;overflow:hidden}
+.insight-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
+.insight-card.ic-health::before{background:var(--teal)}
+.insight-card.ic-cognition::before{background:var(--accent)}
+.insight-card.ic-knowledge::before{background:#64AAFF}
+.insight-card.ic-temporal::before{background:var(--orange)}
+.insight-card.ic-social::before{background:var(--red)}
+.insight-card.ic-wellbeing::before{background:#C87CFF}
+.insight-card.ic-cross::before{background:linear-gradient(to bottom,var(--accent),var(--teal))}
+
+.ins-card-top{display:flex;align-items:flex-start;gap:10px;padding-left:8px;margin-bottom:7px}
+.ins-ico{font-size:18px;flex-shrink:0;margin-top:1px}
+.ins-meta{flex:1;min-width:0}
+.ins-title{font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:4px}
+.ins-dims{display:flex;gap:4px;flex-wrap:wrap}
+.ins-dim-tag{font-size:9px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--s1);border:1px solid var(--border);color:var(--text3);font-family:monospace}
+.ins-body{font-size:12px;color:var(--text2);line-height:1.6;padding-left:8px;margin-top:4px}
+.ins-footer{display:flex;align-items:center;justify-content:space-between;padding-left:8px;margin-top:8px}
+.ins-ts{font-size:11px;color:var(--text3)}
+.ins-conf{font-size:11px;font-weight:600}
+
+.ins-empty{text-align:center;padding:44px 0;color:var(--text3)}
+.ins-empty-ico{font-size:42px;margin-bottom:12px}
+.ins-empty-lbl{font-size:14px;font-weight:500;margin-bottom:6px;color:var(--text2)}
+.ins-empty-sub{font-size:12px;line-height:1.5}
+
+/* ═══════════════════════════════════
+   APPS PANEL
+═══════════════════════════════════ */
+.apps-hdr{font-size:20px;font-weight:800;color:var(--text);margin-bottom:16px;font-family:'Outfit',sans-serif}
+.app-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.app-item{display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer}
+.app-ico-wrap{width:70px;height:70px;border-radius:20px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:28px;transition:all .18s;position:relative}
+.app-item:active .app-ico-wrap{transform:scale(.86)}
+.app-port{position:absolute;bottom:-4px;right:-4px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--card);border:1px solid var(--border);color:var(--text3)}
+.app-name{font-size:11px;color:var(--text2);font-weight:500;text-align:center;line-height:1.3}
+
+.sys-card{background:var(--s2);border:1px solid var(--border);border-radius:16px;padding:14px}
+.sys-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.sys-row:last-child{border-bottom:none}
+.sys-name{font-size:12.5px;color:var(--text2);display:flex;align-items:center;gap:8px}
+.sys-status{font-size:12px;font-weight:600}
+.sys-ok{color:var(--teal)}.sys-err{color:var(--red)}.sys-na{color:var(--text3)}
+.sys-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:all .3s}
+.sys-dot.ok{background:var(--teal);box-shadow:0 0 6px var(--teal)}
+.sys-dot.err{background:var(--red)}
+.sys-dot.na{background:var(--text3)}
+
+/* Memory bars */
+.mem-row{margin-bottom:8px}
+.mem-row:last-child{margin-bottom:0}
+.mem-label-row{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text2);margin-bottom:3px}
+.mem-bar-track{height:4px;border-radius:2px;background:var(--s3);overflow:hidden}
+.mem-bar-fill{height:100%;border-radius:2px}
+
+/* ═══════════════════════════════════
+   NOTIFICATION TOAST
+═══════════════════════════════════ */
+.notif{position:absolute;top:62px;left:16px;right:16px;background:var(--card);border:1px solid var(--border2);border-radius:18px;padding:11px 14px;display:flex;align-items:center;gap:10px;z-index:400;box-shadow:0 10px 36px rgba(0,0,0,.5);transform:translateY(-130px);opacity:0;transition:all .42s cubic-bezier(.34,1.56,.64,1)}
+.notif.show{transform:translateY(0);opacity:1}
+.notif-ico{width:34px;height:34px;border-radius:10px;background:var(--accent-s);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.notif-body{flex:1}
+.notif-t{font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:1px}
+.notif-d{font-size:11.5px;color:var(--text2)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="di"></div>
+  <div class="viewport">
+
+    <!-- ── Status Bar ── -->
+    <div class="sb">
+      <span class="sb-time" id="sbTime">9:41</span>
+      <div class="sb-right">
+        <div class="sb-conn offline" id="connDot"></div>
+      </div>
+    </div>
+
+    <!-- ── Pages ── -->
+    <div class="pages">
+
+      <!-- HOME -->
+      <div class="page active" id="p-home">
+        <div class="home-bg"></div>
+
+        <div class="orb-wrap">
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb">
+            <span class="orb-n" id="orbPct">--</span>
+            <span class="orb-l">模型覆盖</span>
+          </div>
+        </div>
+
+        <div class="home-greeting">
+          <h2 id="greeting">Nervus · Personal AI v2</h2>
+          <p id="greetingSub">正在连接你的神经系统…</p>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-top">
+            <span class="phase-title">冷启动进度</span>
+            <span class="phase-badge" id="phaseBadge">Phase 0</span>
+          </div>
+          <div class="phase-bar-track">
+            <div class="phase-bar-fill" id="phaseBar" style="width:0%"></div>
+          </div>
+          <div class="phase-desc" id="phaseDesc">正在连接…</div>
+        </div>
+
+        <div class="ai-banner">
+          <div class="ai-av">🧠</div>
+          <div class="ai-body">
+            <div class="ai-lbl">Personal Model <div class="ai-dot"></div></div>
+            <div class="ai-txt" id="aiBannerTxt">正在加载系统状态…</div>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <span class="stat-n" id="statDims" style="color:var(--accent)">--</span>
+            <span class="stat-l">已激活维度</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-n" id="statConf" style="color:var(--teal)">--%</span>
+            <span class="stat-l">平均置信度</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-n" id="statBuf" style="color:var(--orange)">--</span>
+            <span class="stat-l">事件缓冲</span>
+          </div>
+        </div>
+
+        <div class="sec-hdr">关键维度快照</div>
+        <div class="dim-quick" id="quickDims">
+          <div class="skeleton" style="height:90px"></div>
+          <div class="skeleton" style="height:90px"></div>
+          <div class="skeleton" style="height:90px"></div>
+          <div class="skeleton" style="height:90px"></div>
+        </div>
+      </div>
+
+      <!-- DIMENSIONS -->
+      <div class="page" id="p-model">
+        <div class="sec-hdr" style="margin-top:0">20 个个人维度</div>
+        <div class="cat-tabs">
+          <button class="cat-tab active" onclick="filterCat(this,'all')">全部</button>
+          <button class="cat-tab" onclick="filterCat(this,'health')">健康</button>
+          <button class="cat-tab" onclick="filterCat(this,'cognition')">认知</button>
+          <button class="cat-tab" onclick="filterCat(this,'knowledge')">知识</button>
+          <button class="cat-tab" onclick="filterCat(this,'temporal')">时间</button>
+          <button class="cat-tab" onclick="filterCat(this,'social')">社交</button>
+          <button class="cat-tab" onclick="filterCat(this,'wellbeing')">幸福感</button>
+        </div>
+        <div class="dim-grid" id="dimGrid">
+          <div class="skeleton" style="height:90px;border-radius:16px"></div>
+          <div class="skeleton" style="height:90px;border-radius:16px;margin-top:8px"></div>
+          <div class="skeleton" style="height:90px;border-radius:16px;margin-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- QUERY -->
+      <div class="page" id="p-query">
+        <div class="query-bg"></div>
+        <div class="query-hdr">自然语言提问</div>
+        <div class="query-sub">基于你的 20 个维度，用日常语言了解自己的状态</div>
+        <div class="sug-chips" id="sugChips">
+          <button class="sug-chip" onclick="sendSuggest(this)">我今天状态如何？</button>
+          <button class="sug-chip" onclick="sendSuggest(this)">为什么最近总是很累？</button>
+          <button class="sug-chip" onclick="sendSuggest(this)">今天适合深度工作吗？</button>
+          <button class="sug-chip" onclick="sendSuggest(this)">我的睡眠质量怎样？</button>
+        </div>
+        <div class="msgs" id="msgs"></div>
+      </div>
+
+      <!-- INSIGHTS -->
+      <div class="page" id="p-insights">
+        <div class="ins-hdr">跨维度洞察</div>
+        <div class="ins-sub">Insight Engine 每小时分析 20 个维度之间的关联</div>
+        <div id="insightsList">
+          <div class="skeleton" style="height:100px;border-radius:18px;margin-bottom:10px"></div>
+          <div class="skeleton" style="height:100px;border-radius:18px;margin-bottom:10px"></div>
+          <div class="skeleton" style="height:80px;border-radius:18px"></div>
+        </div>
+      </div>
+
+      <!-- APPS -->
+      <div class="page" id="p-apps">
+        <div class="apps-hdr">应用中心</div>
+
+        <div class="app-grid">
+          <div class="app-item" onclick="openApp('calorie-tracker',8001)">
+            <div class="app-ico-wrap" style="background:rgba(255,170,92,.1);border-color:rgba(255,170,92,.2)">
+              🍎
+              <div class="app-port">8001</div>
+            </div>
+            <span class="app-name">热量追踪</span>
+          </div>
+          <div class="app-item" onclick="openApp('meeting-notes',8002)">
+            <div class="app-ico-wrap" style="background:rgba(139,114,255,.1);border-color:rgba(139,114,255,.2)">
+              🎙
+              <div class="app-port">8002</div>
+            </div>
+            <span class="app-name">会议纪要</span>
+          </div>
+          <div class="app-item" onclick="openApp('knowledge-base',8004)">
+            <div class="app-ico-wrap" style="background:rgba(94,234,181,.1);border-color:rgba(94,234,181,.2)">
+              📚
+              <div class="app-port">8004</div>
+            </div>
+            <span class="app-name">知识库</span>
+          </div>
+        </div>
+
+        <div class="sec-hdr">系统状态</div>
+        <div class="sys-card">
+          <div class="sys-row">
+            <span class="sys-name"><div class="sys-dot na" id="dotPm"></div>Personal Model</span>
+            <span class="sys-status sys-na" id="stPm">检查中…</span>
+          </div>
+          <div class="sys-row">
+            <span class="sys-name"><div class="sys-dot na" id="dotArbor"></div>Arbor Core</span>
+            <span class="sys-status sys-na" id="stArbor">检查中…</span>
+          </div>
+          <div class="sys-row">
+            <span class="sys-name"><div class="sys-dot na" id="dotRedis"></div>Redis</span>
+            <span class="sys-status sys-na" id="stRedis">检查中…</span>
+          </div>
+          <div class="sys-row">
+            <span class="sys-name"><div class="sys-dot na" id="dotPg"></div>PostgreSQL</span>
+            <span class="sys-status sys-na" id="stPg">检查中…</span>
+          </div>
+        </div>
+
+        <div class="sec-hdr">内存预算 (Jetson 8GB)</div>
+        <div class="card" style="padding:14px">
+          <div id="memBars"></div>
+        </div>
+      </div>
+
+    </div><!-- /pages -->
+
+    <!-- ── Bottom Nav ── -->
+    <nav class="nav">
+      <button class="nav-btn active" id="nb-home" onclick="goPage('p-home','nb-home')">
+        <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+        首页
+      </button>
+      <button class="nav-btn" id="nb-model" onclick="goPage('p-model','nb-model')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
+        维度
+      </button>
+      <button class="nav-btn" id="nb-query" onclick="goPage('p-query','nb-query')">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        提问
+      </button>
+      <button class="nav-btn" id="nb-insights" onclick="goPage('p-insights','nb-insights')">
+        <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        洞察
+      </button>
+      <button class="nav-btn" id="nb-apps" onclick="goPage('p-apps','nb-apps')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        应用
+      </button>
+    </nav>
+
+    <!-- ── Query input bar (floats above nav when on query page) ── -->
+    <div class="query-input-bar" id="queryBar">
+      <div class="query-input-row">
+        <input class="query-inp" id="queryInp" placeholder="问问你的 Personal Model…" onkeydown="onKey(event)">
+        <button class="send-btn" id="sendBtn" onclick="sendQuery()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Notification toast ── -->
+    <div class="notif" id="notif">
+      <div class="notif-ico" id="notifIco">✨</div>
+      <div class="notif-body">
+        <div class="notif-t" id="notifT"></div>
+        <div class="notif-d" id="notifD"></div>
+      </div>
+    </div>
+
+  </div><!-- /viewport -->
+</div><!-- /phone -->
+
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONFIG
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const PM  = 'http://localhost:8100';  // Personal Model
+const ARB = 'http://localhost:8090';  // Arbor Core
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// NAVIGATION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let curPage = 'p-home', curNav = 'nb-home';
+
+function goPage(pageId, navId) {
+  document.getElementById(curPage).classList.remove('active');
+  document.getElementById(curNav).classList.remove('active');
+  document.getElementById(pageId).classList.add('active');
+  document.getElementById(navId).classList.add('active');
+  curPage = pageId;
+  curNav  = navId;
+
+  const qbar = document.getElementById('queryBar');
+  if (pageId === 'p-query') {
+    qbar.style.display = 'block';
+    setTimeout(() => document.getElementById('queryInp').focus(), 120);
+  } else {
+    qbar.style.display = 'none';
+  }
+
+  if (pageId === 'p-model'    && !dimLoaded)     loadDimensions();
+  if (pageId === 'p-insights' && !insLoaded)      loadInsights();
+  if (pageId === 'p-apps')                        checkSysStatus();
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CLOCK
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function tick() {
+  const d = new Date();
+  document.getElementById('sbTime').textContent =
+    pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+tick(); setInterval(tick, 10000);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TOAST
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function toast(ico, title, body, ms=3200) {
+  const el = document.getElementById('notif');
+  document.getElementById('notifIco').textContent = ico;
+  document.getElementById('notifT').textContent   = title;
+  document.getElementById('notifD').textContent   = body;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// API HELPERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function get(url) {
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    return r.ok ? r.json() : null;
+  } catch { return null; }
+}
+
+async function post(url, body) {
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20000),
+    });
+    return r.ok ? r.json() : null;
+  } catch { return null; }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HOME
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5)  return '深夜好';
+  if (h < 12) return '早上好';
+  if (h < 18) return '下午好';
+  return '晚上好';
+}
+
+async function loadHome() {
+  const [status, cold] = await Promise.all([
+    get(`${PM}/status`),
+    get(`${PM}/cold-start`),
+  ]);
+
+  const conn = document.getElementById('connDot');
+
+  if (status) {
+    conn.classList.remove('offline');
+    const pct  = status.dimensions?.coverage_pct ?? 0;
+    const pop  = status.dimensions?.populated ?? 0;
+    const tot  = status.dimensions?.total ?? 20;
+    const conf = status.dimensions?.avg_confidence ?? 0;
+    const buf  = status.workers?.model_updater?.event_buffer_size ?? '--';
+
+    document.getElementById('orbPct').textContent   = Math.round(pct) + '%';
+    document.getElementById('greeting').textContent = `${greeting()}，Nervus`;
+    document.getElementById('greetingSub').textContent =
+      `已覆盖 ${pop} / ${tot} 个维度`;
+
+    document.getElementById('statDims').textContent = pop;
+    document.getElementById('statConf').textContent = Math.round(conf * 100) + '%';
+    document.getElementById('statBuf').textContent  = buf;
+
+    document.getElementById('aiBannerTxt').textContent = pop > 0
+      ? `当前激活 ${pop} 个维度，平均置信度 ${Math.round(conf*100)}%，每 5 分钟自动更新。`
+      : '系统就绪，等待 App 产生事件后开始维度推断。';
+  } else {
+    conn.classList.add('offline');
+    document.getElementById('greetingSub').textContent = '无法连接到 Personal Model :8100';
+    document.getElementById('aiBannerTxt').textContent = '请确认服务已启动：docker compose up -d';
+  }
+
+  if (cold) {
+    const ph = cold.phase ?? 0;
+    document.getElementById('phaseBadge').textContent = `Phase ${ph}`;
+    document.getElementById('phaseBar').style.width   = (cold.progress_pct ?? 0) + '%';
+    document.getElementById('phaseDesc').textContent  = cold.message ?? '';
+  }
+
+  loadQuickDims();
+}
+
+const QUICK_IDS = ['energy_level_now','sleep_last_night','cognitive_load_now','stress_indicator'];
+const DIM_ICO = {
+  nutrition_24h:'🍽',sleep_last_night:'😴',sleep_pattern_14d:'📈',activity_today:'🏃',
+  cognitive_load_now:'🧠',focus_quality_today:'🎯',stress_indicator:'🌡',energy_level_now:'⚡',
+  active_topics:'📖',knowledge_graph_state:'🕸',reading_velocity:'📚',
+  daily_routine:'🔄',weekly_pattern:'📅',upcoming_context:'📆',location_context:'📍',
+  social_rhythm:'👥',key_relationships:'💬',communication_load:'📱',
+  mood_indicator:'😊',life_satisfaction_trend:'🌟',
+};
+
+async function loadQuickDims() {
+  const data = await get(`${PM}/dimensions`);
+  const el   = document.getElementById('quickDims');
+  if (!data) return;
+
+  const dims = (data.dimensions ?? []).filter(d => QUICK_IDS.includes(d.id));
+  if (!dims.length) {
+    el.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:20px 0;color:var(--text3);font-size:12px">暂无维度数据，等待 App 产生事件…</div>';
+    return;
+  }
+  el.innerHTML = dims.map(d => {
+    const s    = d.state;
+    const ico  = DIM_ICO[d.id] ?? '📊';
+    const val  = s.populated ? fmtVal(d.id, s.current_value) : '待推断';
+    const conf = s.populated ? Math.round(s.confidence * 100) : 0;
+    const cc   = conf > 70 ? 'var(--teal)' : conf > 40 ? 'var(--orange)' : 'var(--text3)';
+    return `<div class="dq-item" onclick="goPage('p-model','nb-model')">
+      <span class="dq-ico">${ico}</span>
+      <div class="dq-lbl">${d.name}</div>
+      <div class="dq-val">${esc(val)}</div>
+      <div class="dq-conf">${s.populated ? '置信度 '+conf+'%' : '暂无数据'}</div>
+      <div class="conf-bar"><div class="conf-fill" style="width:${conf}%;background:${cc}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DIMENSIONS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let dimLoaded = false, allDims = [], curCat = 'all';
+
+const CAT_BG = {
+  health:'rgba(94,234,181,.12)',cognition:'rgba(139,114,255,.12)',
+  knowledge:'rgba(100,170,255,.12)',temporal:'rgba(255,170,92,.12)',
+  social:'rgba(255,110,122,.12)',wellbeing:'rgba(200,124,255,.12)',
+};
+const CAT_AC = {
+  health:'var(--teal)',cognition:'var(--accent)',
+  knowledge:'#64AAFF',temporal:'var(--orange)',
+  social:'var(--red)',wellbeing:'#C87CFF',
+};
+
+async function loadDimensions() {
+  dimLoaded = true;
+  const data = await get(`${PM}/dimensions`);
+  const grid = document.getElementById('dimGrid');
+  if (!data) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text3)">无法连接到 Personal Model</div>';
+    return;
+  }
+  allDims = data.dimensions ?? [];
+  renderDims();
+}
+
+function filterCat(btn, cat) {
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  curCat = cat;
+  renderDims();
+}
+
+function renderDims() {
+  const list = curCat === 'all' ? allDims : allDims.filter(d => d.category === curCat);
+  const grid = document.getElementById('dimGrid');
+  if (!list.length) {
+    grid.innerHTML = '<div style="text-align:center;padding:30px 0;color:var(--text3)">暂无此分类维度</div>';
+    return;
+  }
+  grid.innerHTML = list.map(d => {
+    const s   = d.state;
+    const ico = DIM_ICO[d.id] ?? '📊';
+    const bg  = CAT_BG[d.category] ?? 'var(--s2)';
+    const ac  = CAT_AC[d.category] ?? 'var(--accent)';
+    const conf = s.populated ? Math.round(s.confidence * 100) : 0;
+
+    let badge, bClass;
+    if (!s.populated)  { badge = '待推断'; bClass = 'dim-empty'; }
+    else if (s.stale)  { badge = '已过期'; bClass = 'dim-stale'; }
+    else               { badge = '已激活'; bClass = 'dim-populated'; }
+
+    const val = s.populated ? `"${esc(fmtVal(d.id, s.current_value))}"` : '等待事件数据…';
+    const ts  = s.populated ? `• ${relTime(s.last_updated)}` : '';
+
+    return `<div class="dim-card">
+      <div class="dim-card-top">
+        <div class="dim-ico" style="background:${bg}">${ico}</div>
+        <div class="dim-meta">
+          <div class="dim-name">${esc(d.name)}</div>
+          <div class="dim-id">${d.id}</div>
+        </div>
+        <span class="dim-badge ${bClass}">${badge}</span>
+      </div>
+      <div class="dim-value">${val}</div>
+      <div class="dim-footer">
+        <div class="dim-conf-bar"><div class="dim-conf-fill" style="width:${conf}%;background:${ac}"></div></div>
+        <span class="dim-conf-lbl">${conf}%</span>
+        <span class="dim-ts">${ts}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// QUERY / CHAT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let busy = false;
+
+function sendSuggest(btn) {
+  document.getElementById('queryInp').value = btn.textContent;
+  sendQuery();
+}
+
+function onKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuery(); }
+}
+
+async function sendQuery() {
+  if (busy) return;
+  const inp = document.getElementById('queryInp');
+  const q   = inp.value.trim();
+  if (!q) return;
+  inp.value = '';
+  busy = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  addMsg('me', q);
+  const tyEl = addTyping();
+
+  const data = await post(`${PM}/query`, { question: q, include_insights: true });
+  tyEl.remove();
+
+  if (data) {
+    addMsg('ai', data.answer ?? '模型暂无回答。');
+    if (data.dimensions_consulted?.length) {
+      addMsg('ai', '📊 参考维度：' + data.dimensions_consulted.join('、'));
+    }
+  } else {
+    addMsg('ai', '⚠️ 无法连接到 Personal Model，请确认服务已启动。');
+  }
+
+  busy = false;
+  document.getElementById('sendBtn').disabled = false;
+}
+
+function addMsg(type, text) {
+  const box = document.getElementById('msgs');
+  const now = new Date();
+  const t   = pad(now.getHours()) + ':' + pad(now.getMinutes());
+  const el  = document.createElement('div');
+  el.className = `msg ${type}`;
+  el.innerHTML = `<div class="bubble">${esc(text)}</div><div class="msg-t">${t}</div>`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+
+function addTyping() {
+  const box = document.getElementById('msgs');
+  const el  = document.createElement('div');
+  el.className = 'typing-wrap';
+  el.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INSIGHTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let insLoaded = false;
+
+const INS_ICO = {
+  health:'💚',cognition:'🧠',knowledge:'📖',
+  temporal:'⏰',social:'👥',wellbeing:'✨',cross:'🔗',
+};
+
+async function loadInsights() {
+  insLoaded = true;
+  const data = await get(`${PM}/insights?limit=20`);
+  const el   = document.getElementById('insightsList');
+
+  if (!data || !data.insights?.length) {
+    el.innerHTML = `<div class="ins-empty">
+      <div class="ins-empty-ico">🔍</div>
+      <div class="ins-empty-lbl">暂无洞察</div>
+      <div class="ins-empty-sub">Insight Engine 每小时运行一次<br>需要至少 Phase 1 的数据积累</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = data.insights.map(ins => {
+    const type = ins.type ?? 'cross';
+    const conf = Math.round((ins.confidence ?? 0) * 100);
+    const cc   = conf > 70 ? 'var(--teal)' : conf > 40 ? 'var(--orange)' : 'var(--text3)';
+    const tags = (ins.dim_ids ?? []).slice(0,5)
+      .map(d => `<span class="ins-dim-tag">${d}</span>`).join('');
+
+    return `<div class="insight-card ic-${type}">
+      <div class="ins-card-top">
+        <div class="ins-ico">${INS_ICO[type] ?? '💡'}</div>
+        <div class="ins-meta">
+          <div class="ins-title">${esc(ins.title ?? '跨维度关联')}</div>
+          <div class="ins-dims">${tags}</div>
+        </div>
+      </div>
+      <div class="ins-body">${esc(ins.body ?? ins.content ?? '')}</div>
+      <div class="ins-footer">
+        <span class="ins-ts">${relTime(ins.created_at ?? ins.timestamp)}</span>
+        <span class="ins-conf" style="color:${cc}">置信度 ${conf}%</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// APPS / SYS STATUS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function checkSysStatus() {
+  const [pmH, arbH] = await Promise.all([
+    get(`${PM}/health`),
+    get(`${ARB}/health`),
+  ]);
+
+  function set(dotId, stId, ok, label) {
+    const d = document.getElementById(dotId);
+    const s = document.getElementById(stId);
+    d.className = 'sys-dot ' + (ok ? 'ok' : 'err');
+    s.className = 'sys-status ' + (ok ? 'sys-ok' : 'sys-err');
+    s.textContent = ok ? label : '离线';
+  }
+
+  if (pmH) {
+    set('dotPm',    'stPm',    pmH.healthy, 'v' + (pmH.version ?? '2'));
+    set('dotRedis', 'stRedis', pmH.checks?.redis    === 'ok', '运行中');
+    set('dotPg',    'stPg',    pmH.checks?.postgres === 'ok', '运行中');
+  } else {
+    set('dotPm','stPm',false,''); set('dotRedis','stRedis',false,''); set('dotPg','stPg',false,'');
+  }
+  set('dotArbor', 'stArbor', !!arbH, arbH ? 'v' + (arbH.version ?? '2') : '');
+
+  // Memory budget
+  const MEM = [
+    { name:'llama.cpp (Qwen3.5-4B)', mb:3200, c:'var(--accent)' },
+    { name:'Faster-Whisper',          mb:600,  c:'var(--teal)' },
+    { name:'Redis',                   mb:640,  c:'var(--orange)' },
+    { name:'PostgreSQL',              mb:512,  c:'#64AAFF' },
+    { name:'Personal Model',          mb:256,  c:'#C87CFF' },
+    { name:'NATS JetStream',          mb:128,  c:'var(--red)' },
+    { name:'Arbor Core',              mb:128,  c:'var(--accent)' },
+    { name:'Apps (3×)',               mb:300,  c:'var(--teal)' },
+  ];
+  document.getElementById('memBars').innerHTML = MEM.map(m => {
+    const pct = Math.round(m.mb / 8192 * 100);
+    return `<div class="mem-row">
+      <div class="mem-label-row"><span>${m.name}</span><span style="color:var(--text3)">${m.mb} MB</span></div>
+      <div class="mem-bar-track"><div class="mem-bar-fill" style="width:${pct}%;background:${m.c}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function openApp(name, port) {
+  toast('🚀', name, `运行在 localhost:${port}`);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// UTILITIES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function relTime(iso) {
+  if (!iso) return '';
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 60)    return `${Math.round(s)}秒前`;
+  if (s < 3600)  return `${Math.round(s/60)}分钟前`;
+  if (s < 86400) return `${Math.round(s/3600)}小时前`;
+  return `${Math.round(s/86400)}天前`;
+}
+
+function fmtVal(id, v) {
+  if (!v || typeof v !== 'object') return String(v ?? '');
+  if (v.level)         return v.level;
+  if (v.duration_hours)return `${v.duration_hours}h`;
+  if (v.calories_kcal) return `${v.calories_kcal} kcal`;
+  if (v.score !== undefined) return `${v.score}/10`;
+  if (v.intensity)     return v.intensity;
+  if (v.topics)        return Array.isArray(v.topics) ? v.topics.slice(0,2).join(', ') : v.topics;
+  if (v.type)          return v.type;
+  const first = Object.values(v).find(x => typeof x === 'string' || typeof x === 'number');
+  return first !== undefined ? String(first) : JSON.stringify(v).slice(0, 40);
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INIT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+loadHome();
+setInterval(() => { if (curPage === 'p-home') loadHome(); }, 60000);
+setInterval(() => {
+  if (curPage === 'p-insights') { insLoaded = false; loadInsights(); }
+}, 120000);
+</script>
+</body>
+</html>
