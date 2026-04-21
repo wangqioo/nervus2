@@ -1,0 +1,31 @@
+{
+  "id": "knowledge-base",
+  "name": "Knowledge Base",
+  "version": "2.0.0",
+  "description": "Semantic knowledge store with Personal Model topic awareness",
+  "subscribes": [
+    {"subject": "knowledge.article.>", "handler_path": "/intake/knowledge_article_", "filter": {}},
+    {"subject": "knowledge.pdf.>", "handler_path": "/intake/knowledge_pdf_", "filter": {}},
+    {"subject": "knowledge.note.>", "handler_path": "/intake/knowledge_note_", "filter": {}},
+    {"subject": "knowledge.video.>", "handler_path": "/intake/knowledge_video_", "filter": {}},
+    {"subject": "meeting.recording.processed", "handler_path": "/intake/meeting_recording_processed", "filter": {}}
+  ],
+  "publishes": [
+    "knowledge.article.indexed",
+    "knowledge.pdf.indexed",
+    "knowledge.query.answered",
+    "knowledge.meeting.indexed"
+  ],
+  "actions": [
+    {"name": "semantic_search", "description": "Search the knowledge base by natural language"},
+    {"name": "ask", "description": "Answer a question using RAG over the knowledge base"},
+    {"name": "get_topic_summary", "description": "Summarize knowledge on a specific topic"}
+  ],
+  "context_reads": [],
+  "context_writes": [],
+  "memory_writes": ["knowledge.knowledge_items"],
+  "model_subscriptions": [
+    {"dim_id": "active_topics", "handler_path": "/intake/dim_update", "min_confidence": 0.5},
+    {"dim_id": "cognitive_load_now", "handler_path": "/intake/dim_update", "min_confidence": 0.6}
+  ]
+}

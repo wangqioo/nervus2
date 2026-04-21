@@ -1,0 +1,305 @@
+# nervus2 — Docker Compose
+# Targets Jetson Orin Nano 8GB (arm64) and x86_64 dev machines.
+# Total steady-state memory budget: ~6.5 GB
+#
+# Services:
+#   Infrastructure: nats, redis, postgres
+#   AI:             llama (Qwen3.5-4B), whisper (Faster-Whisper)
+#   nervus2 core:   personal-model (NEW in v2)
+#   nervus2 apps:   (add as you build them)
+
+version: "3.9"
+
+x-common-env: &common-env
+  NATS_URL: nats://nats:4222
+  REDIS_URL: redis://redis:6379
+  POSTGRES_URL: postgresql://nervus:nervus@postgres:5432/nervus2
+  LLAMA_URL: http://llama:8080
+  WHISPER_URL: http://whisper:9000
+
+networks:
+  nervus:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  nats-data:
+  llama-models:
+  calorie-data:
+
+services:
+
+  # -----------------------------------------------------------------------
+  # Infrastructure
+  # -----------------------------------------------------------------------
+
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    networks: [nervus]
+    ports:
+      - "4222:4222"
+      - "8222:8222"   # monitoring
+    volumes:
+      - ./infra/nats/nats.conf:/etc/nats/nats.conf:ro
+      - nats-data:/data/jetstream
+    command: ["-c", "/etc/nats/nats.conf"]
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    networks: [nervus]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis-data:/data
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    mem_limit: 640m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: ankane/pgvector:latest
+    restart: unless-stopped
+    networks: [nervus]
+    environment:
+      POSTGRES_USER: nervus
+      POSTGRES_PASSWORD: nervus
+      POSTGRES_DB: nervus2
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nervus -d nervus2"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # -----------------------------------------------------------------------
+  # AI inference (Jetson: CUDA-enabled; x86: CPU fallback)
+  # -----------------------------------------------------------------------
+
+  llama:
+    # On Jetson: swap this image for a CUDA-enabled llama.cpp build
+    image: ghcr.io/ggerganov/llama.cpp:server
+    restart: unless-stopped
+    networks: [nervus]
+    ports:
+      - "8080:8080"
+    volumes:
+      - llama-models:/models
+    environment:
+      # Qwen3.5-4B GGUF — download to llama-models volume before starting
+      LLAMA_MODEL: /models/qwen3.5-4b-q4_k_m.gguf
+    command:
+      - "--model"
+      - "/models/qwen3.5-4b-q4_k_m.gguf"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "--ctx-size"
+      - "4096"
+      - "--n-gpu-layers"
+      - "35"          # Adjust: 0 for CPU-only, 35 for full Jetson GPU offload
+      - "--embedding"
+      - "--threads"
+      - "4"
+    mem_limit: 3200m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    restart: unless-stopped
+    networks: [nervus]
+    ports:
+      - "9000:9000"
+    environment:
+      ASR_MODEL: base
+      ASR_ENGINE: faster_whisper
+    mem_limit: 600m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # -----------------------------------------------------------------------
+  # nervus2 Personal Model — the v2 core (NEW)
+  # -----------------------------------------------------------------------
+
+  personal-model:
+    build:
+      context: ./personal-model
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks: [nervus]
+    ports:
+      - "8100:8100"
+    environment:
+      <<: *common-env
+      SERVICE_VERSION: "2.0.0"
+      LOG_LEVEL: INFO
+      MODEL_UPDATER_INTERVAL: "300"   # 5 minutes
+      INSIGHT_INTERVAL: "3600"        # 1 hour
+      MAX_PROMPT_TOKENS: "3072"
+      MAX_RESPONSE_TOKENS: "512"
+    depends_on:
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      llama:
+        condition: service_healthy
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # -----------------------------------------------------------------------
+  # Arbor Core v2 — fast event router and app registry
+  # NOTE: build context is repo root so SDK can be COPYed into images
+  # -----------------------------------------------------------------------
+
+  arbor-core:
+    build:
+      context: .
+      dockerfile: arbor-core/Dockerfile
+    restart: unless-stopped
+    networks: [nervus]
+    ports:
+      - "8090:8090"
+      - "8222:8222"
+    environment:
+      <<: *common-env
+      PERSONAL_MODEL_URL: http://personal-model:8100
+      FLOWS_DIR: /app/flows
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      personal-model:
+        condition: service_healthy
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # -----------------------------------------------------------------------
+  # nervus2 apps
+  # All app Dockerfiles use repo root as build context to access nervus-sdk
+  # -----------------------------------------------------------------------
+
+  calorie-tracker:
+    build:
+      context: .
+      dockerfile: apps/calorie-tracker/Dockerfile
+    restart: unless-stopped
+    networks: [nervus]
+    ports:
+      - "8001:8001"
+    environment:
+      <<: *common-env
+      APP_ID: calorie-tracker
+      APP_PORT: "8001"
+      APP_HOST: calorie-tracker
+      PERSONAL_MODEL_URL: http://personal-model:8100
+      ARBOR_URL: http://arbor-core:8090
+      BASE_CALORIE_GOAL: "2000"
+    volumes:
+      - calorie-data:/data
+    depends_on:
+      arbor-core:
+        condition: service_healthy
+    mem_limit: 96m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  knowledge-base:
+    build:
+      context: .
+      dockerfile: apps/knowledge-base/Dockerfile
+    restart: unless-stopped
+    networks: [nervus]
+    ports:
+      - "8004:8004"
+    environment:
+      <<: *common-env
+      APP_ID: knowledge-base
+      APP_PORT: "8004"
+      APP_HOST: knowledge-base
+      PERSONAL_MODEL_URL: http://personal-model:8100
+      ARBOR_URL: http://arbor-core:8090
+    depends_on:
+      arbor-core:
+        condition: service_healthy
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  meeting-notes:
+    build:
+      context: .
+      dockerfile: apps/meeting-notes/Dockerfile
+    restart: unless-stopped
+    networks: [nervus]
+    ports:
+      - "8002:8002"
+    environment:
+      <<: *common-env
+      APP_ID: meeting-notes
+      APP_PORT: "8002"
+      APP_HOST: meeting-notes
+      PERSONAL_MODEL_URL: http://personal-model:8100
+      ARBOR_URL: http://arbor-core:8090
+      WHISPER_URL: http://whisper:9000
+    depends_on:
+      arbor-core:
+        condition: service_healthy
+      whisper:
+        condition: service_healthy
+    mem_limit: 96m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5

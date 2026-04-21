@@ -1,0 +1,81 @@
+{
+  "flows": [
+    {
+      "id": "food-photo-pipeline",
+      "description": "Classified food photo → calorie tracker + life memory",
+      "trigger": {"subject": "media.photo.classified", "filter": {"tags": "food"}},
+      "steps": [
+        {
+          "id": "log_calories",
+          "type": "intake",
+          "params": {"app_id": "calorie-tracker", "handler": "media_photo_classified", "payload": {"$ref": "$.trigger.payload"}}
+        },
+        {
+          "id": "archive_memory",
+          "type": "app_action",
+          "params": {"app_id": "life-memory", "action": "archive_photo", "payload": {"$ref": "$.trigger.payload"}}
+        }
+      ]
+    },
+    {
+      "id": "meeting-recording-pipeline",
+      "description": "Completed meeting recording → transcription + knowledge indexing",
+      "trigger": {"subject": "meeting.recording.completed"},
+      "steps": [
+        {
+          "id": "transcribe",
+          "type": "intake",
+          "params": {"app_id": "meeting-notes", "handler": "meeting_recording_completed", "payload": {"$ref": "$.trigger.payload"}}
+        }
+      ]
+    },
+    {
+      "id": "knowledge-pdf-pipeline",
+      "description": "PDF detected → knowledge base indexing",
+      "trigger": {"subject": "knowledge.pdf.>"},
+      "steps": [
+        {
+          "id": "index_pdf",
+          "type": "intake",
+          "params": {"app_id": "knowledge-base", "handler": "knowledge_pdf_", "payload": {"$ref": "$.trigger.payload"}}
+        }
+      ]
+    },
+    {
+      "id": "knowledge-article-pipeline",
+      "description": "Article/RSS content → knowledge base indexing",
+      "trigger": {"subject": "knowledge.article.>"},
+      "steps": [
+        {
+          "id": "index_article",
+          "type": "intake",
+          "params": {"app_id": "knowledge-base", "handler": "knowledge_article_", "payload": {"$ref": "$.trigger.payload"}}
+        }
+      ]
+    },
+    {
+      "id": "meal-logged-context-update",
+      "description": "Meal logged → emit event for Personal Model updater",
+      "trigger": {"subject": "health.calorie.meal_logged"},
+      "steps": [
+        {
+          "id": "emit_nutrition_signal",
+          "type": "emit_event",
+          "params": {"subject": "health.nutrition.updated", "payload": {"$ref": "$.trigger.payload"}}
+        }
+      ]
+    },
+    {
+      "id": "low-battery-notification",
+      "description": "Low battery alert → global notification",
+      "trigger": {"subject": "sense.battery.low"},
+      "steps": [
+        {
+          "id": "notify",
+          "type": "notification",
+          "params": {"title": "Low Battery", "body": "Device battery is low", "source_app": "sense"}
+        }
+      ]
+    }
+  ]
+}

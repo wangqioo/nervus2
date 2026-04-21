@@ -1,0 +1,24 @@
+{
+  "id": "calorie-tracker",
+  "name": "Calorie Tracker",
+  "version": "2.0.0",
+  "description": "Photo-to-calorie pipeline with Personal Model integration",
+  "subscribes": [
+    {"subject": "media.photo.classified", "handler_path": "/intake/media_photo_classified", "filter": {"tags": "food"}}
+  ],
+  "publishes": [
+    "health.calorie.meal_logged",
+    "health.calorie.goal_updated"
+  ],
+  "actions": [
+    {"name": "get_daily_summary", "description": "Return today's calorie summary"},
+    {"name": "log_manual_meal", "description": "Manually log a meal by name"}
+  ],
+  "context_reads": ["physical.calorie_remaining"],
+  "context_writes": ["physical.calorie_remaining"],
+  "memory_writes": [],
+  "model_subscriptions": [
+    {"dim_id": "nutrition_24h", "handler_path": "/intake/dim_update", "min_confidence": 0.5},
+    {"dim_id": "activity_today", "handler_path": "/intake/dim_update", "min_confidence": 0.5}
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "meeting-notes",
+  "name": "Meeting Notes",
+  "version": "2.0.0",
+  "description": "Audio transcription and meeting intelligence with stress context",
+  "subscribes": [
+    {"subject": "meeting.recording.started", "handler_path": "/intake/meeting_recording_started", "filter": {}},
+    {"subject": "meeting.recording.completed", "handler_path": "/intake/meeting_recording_completed", "filter": {}}
+  ],
+  "publishes": [
+    "meeting.recording.processed",
+    "meeting.transcript.ready",
+    "meeting.preparation.needed"
+  ],
+  "actions": [
+    {"name": "transcribe_file", "description": "Transcribe an audio/video file on demand"},
+    {"name": "search_meetings", "description": "Search past meeting transcripts"}
+  ],
+  "context_reads": [],
+  "context_writes": ["app.meeting_in_progress"],
+  "memory_writes": ["knowledge.knowledge_items", "life.life_events"],
+  "model_subscriptions": [
+    {"dim_id": "stress_indicator", "handler_path": "/intake/dim_update", "min_confidence": 0.5},
+    {"dim_id": "upcoming_context", "handler_path": "/intake/dim_update", "min_confidence": 0.5}
+  ]
+}
